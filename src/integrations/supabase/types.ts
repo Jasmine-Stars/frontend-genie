@@ -14,16 +14,327 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          address: string
+          applicant_age: number
+          applicant_name: string
+          contact_email: string
+          contact_phone: string
+          created_at: string
+          id: string
+          project_id: string | null
+          requested_amount: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          situation: string
+          status: string
+          updated_at: string
+          urgency_level: string
+        }
+        Insert: {
+          address: string
+          applicant_age: number
+          applicant_name: string
+          contact_email: string
+          contact_phone: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          requested_amount: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          situation: string
+          status?: string
+          updated_at?: string
+          urgency_level: string
+        }
+        Update: {
+          address?: string
+          applicant_age?: number
+          applicant_name?: string
+          contact_email?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          requested_amount?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          situation?: string
+          status?: string
+          updated_at?: string
+          urgency_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      donations: {
+        Row: {
+          amount: number
+          created_at: string
+          donor_id: string | null
+          id: string
+          payment_method: string
+          project_id: string
+          status: string
+          transaction_hash: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          donor_id?: string | null
+          id?: string
+          payment_method: string
+          project_id: string
+          status?: string
+          transaction_hash?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          donor_id?: string | null
+          id?: string
+          payment_method?: string
+          project_id?: string
+          status?: string
+          transaction_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donations_donor_id_fkey"
+            columns: ["donor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizers: {
+        Row: {
+          contact_email: string
+          contact_phone: string
+          created_at: string
+          description: string
+          id: string
+          organization_name: string
+          organization_type: string
+          registration_number: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["organizer_status"]
+          updated_at: string
+          user_id: string
+          verification_documents: Json | null
+          website_url: string | null
+        }
+        Insert: {
+          contact_email: string
+          contact_phone: string
+          created_at?: string
+          description: string
+          id?: string
+          organization_name: string
+          organization_type: string
+          registration_number?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["organizer_status"]
+          updated_at?: string
+          user_id: string
+          verification_documents?: Json | null
+          website_url?: string | null
+        }
+        Update: {
+          contact_email?: string
+          contact_phone?: string
+          created_at?: string
+          description?: string
+          id?: string
+          organization_name?: string
+          organization_type?: string
+          registration_number?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["organizer_status"]
+          updated_at?: string
+          user_id?: string
+          verification_documents?: Json | null
+          website_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizers_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          beneficiary_count: number
+          category: string
+          created_at: string
+          current_amount: number
+          description: string
+          end_date: string | null
+          id: string
+          image_url: string | null
+          organizer_id: string
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"]
+          target_amount: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          beneficiary_count?: number
+          category: string
+          created_at?: string
+          current_amount?: number
+          description: string
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          organizer_id: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          target_amount: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          beneficiary_count?: number
+          category?: string
+          created_at?: string
+          current_amount?: number
+          description?: string
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          organizer_id?: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          target_amount?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "organizers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "organizer" | "user"
+      organizer_status: "pending" | "approved" | "rejected"
+      project_status: "draft" | "active" | "completed" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +461,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "organizer", "user"],
+      organizer_status: ["pending", "approved", "rejected"],
+      project_status: ["draft", "active", "completed", "cancelled"],
+    },
   },
 } as const
