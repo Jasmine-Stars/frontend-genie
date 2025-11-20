@@ -59,6 +59,9 @@ const Header = () => {
             <Link to="/apply" className="text-foreground hover:text-primary transition-colors font-medium">
               申请救助
             </Link>
+            <Link to="/become-organizer" className="text-foreground hover:text-primary transition-colors font-medium">
+              成为发起人
+            </Link>
             <a href="#impact" className="text-foreground hover:text-primary transition-colors font-medium">
               社会影响
             </a>
@@ -120,6 +123,9 @@ const Header = () => {
             </a>
             <Link to="/apply" className="text-foreground hover:text-primary transition-colors font-medium">
               申请救助
+            </Link>
+            <Link to="/become-organizer" className="text-foreground hover:text-primary transition-colors font-medium">
+              成为发起人
             </Link>
             <a href="#impact" className="text-foreground hover:text-primary transition-colors font-medium">
               社会影响
