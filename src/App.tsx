@@ -8,6 +8,8 @@ import Donate from "./pages/Donate";
 import Apply from "./pages/Apply";
 import Auth from "./pages/Auth";
 import BecomeOrganizer from "./pages/BecomeOrganizer";
+import { AdminLayout } from "./components/AdminLayout";
+import ReviewOrganizers from "./pages/admin/ReviewOrganizers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +26,12 @@ const App = () => (
           <Route path="/apply" element={<Apply />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/become-organizer" element={<BecomeOrganizer />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route path="organizers" element={<ReviewOrganizers />} />
+          </Route>
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
