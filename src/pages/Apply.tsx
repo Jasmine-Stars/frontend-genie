@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,8 @@ import {
   Clock,
   TrendingUp,
   Heart,
-  DollarSign
+  DollarSign,
+  ArrowLeft
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -69,6 +71,7 @@ type ApplicationFormValues = z.infer<typeof applicationSchema>;
 const Apply = () => {
   const [showProgress, setShowProgress] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const form = useForm<ApplicationFormValues>({
     resolver: zodResolver(applicationSchema),
@@ -102,6 +105,16 @@ const Apply = () => {
       
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-6">
+          {/* Back to Home Button */}
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/")}
+            className="mb-6 hover:bg-accent"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            返回主页
+          </Button>
+
           {/* Hero Section */}
           <div className="text-center mb-12 animate-fade-in">
             <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">

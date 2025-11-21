@@ -98,21 +98,24 @@ const Index = () => {
                 暂无进行中的项目，请登录后查看
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {projects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    id={project.id}
-                    title={project.title}
-                    description={project.description}
-                    category={project.category}
-                    organizerName={project.organizers.organization_name}
-                    targetAmount={Number(project.target_amount)}
-                    currentAmount={Number(project.current_amount)}
-                    beneficiaryCount={project.beneficiary_count}
-                    imageUrl={project.image_url || undefined}
-                  />
-                ))}
+              <div className="overflow-hidden relative">
+                <div className="flex gap-6 animate-[scroll_30s_linear_infinite] hover:pause">
+                  {[...projects, ...projects].map((project, index) => (
+                    <div key={`${project.id}-${index}`} className="min-w-[350px] flex-shrink-0">
+                      <ProjectCard
+                        id={project.id}
+                        title={project.title}
+                        description={project.description}
+                        category={project.category}
+                        organizerName={project.organizers.organization_name}
+                        targetAmount={Number(project.target_amount)}
+                        currentAmount={Number(project.current_amount)}
+                        beneficiaryCount={project.beneficiary_count}
+                        imageUrl={project.image_url || undefined}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
