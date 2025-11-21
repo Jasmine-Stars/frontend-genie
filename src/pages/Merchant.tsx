@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,16 +7,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Package, Upload, CheckCircle } from "lucide-react";
+import { Package, Upload, CheckCircle, ArrowLeft } from "lucide-react";
 
 const Merchant = () => {
   const [selectedTab, setSelectedTab] = useState<"supplies" | "shipping">("supplies");
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen">
       <Header />
       <main className="pt-32 pb-20">
         <div className="container mx-auto px-6">
+          {/* Back to Home Button */}
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/")}
+            className="mb-6 hover:bg-accent"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            返回主页
+          </Button>
+
           <div className="text-center mb-12">
             <Package className="w-16 h-16 text-primary mx-auto mb-4" />
             <h1 className="text-4xl md:text-5xl font-bold mb-4">商户物资管理</h1>
