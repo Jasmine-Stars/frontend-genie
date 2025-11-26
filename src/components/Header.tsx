@@ -60,7 +60,7 @@ const Header = () => {
               NGO机构
             </Link>
             <Link to="/merchant" className="text-foreground hover:text-primary transition-colors font-medium">
-              商户物资
+              商户中心
             </Link>
             <Link to="/auditor" className="text-foreground hover:text-primary transition-colors font-medium">
               审计相关
@@ -114,7 +114,7 @@ const Header = () => {
               NGO机构
             </Link>
             <Link to="/merchant" className="text-foreground hover:text-primary transition-colors font-medium">
-              商户物资
+              商户中心
             </Link>
             <Link to="/auditor" className="text-foreground hover:text-primary transition-colors font-medium">
               审计相关
