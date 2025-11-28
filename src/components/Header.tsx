@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Heart, Menu, LogOut, User } from "lucide-react";
+import { Heart, Menu, LogOut, User, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,20 +14,38 @@ import {
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkAdminRole(session.user.id);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkAdminRole(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const checkAdminRole = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    
+    setIsAdmin(data?.some(r => r.role === "admin") || false);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -71,6 +89,14 @@ const Header = () => {
           </nav>
           
           <div className="flex items-center gap-4">
+            {isAdmin && (
+              <Link to="/admin/platform">
+                <Button variant="default" size="sm" className="hidden md:inline-flex">
+                  <Shield className="w-4 h-4 mr-2" />
+                  管理员
+                </Button>
+              </Link>
+            )}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -79,6 +105,12 @@ const Header = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={() => navigate("/admin/platform")}>
+                      <Shield className="w-4 h-4 mr-2" />
+                      管理员控制台
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="w-4 h-4 mr-2" />
                     退出登录

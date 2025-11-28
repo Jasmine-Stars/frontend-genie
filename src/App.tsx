@@ -15,6 +15,7 @@ import BecomeAuditor from "./pages/BecomeAuditor";
 import FundFlow from "./pages/FundFlow";
 import { AdminLayout } from "./components/AdminLayout";
 import ReviewOrganizers from "./pages/admin/ReviewOrganizers";
+import PlatformAdmin from "./pages/admin/PlatformAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route path="organizers" element={<ReviewOrganizers />} />
+            <Route path="platform" element={<PlatformAdmin />} />
           </Route>
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
