@@ -6,6 +6,9 @@ import { CONTRACT_ADDRESSES } from "@/contracts/addresses";
 // 导入合约 ABI
 import MockTokenABI from "@/contracts/abis/MockToken.json";
 import ProjectVaultManagerABI from "@/contracts/abis/ProjectVaultManager.json";
+import SheAidRolesABI from "@/contracts/abis/SheAidRoles.json";
+import NGORegistryABI from "@/contracts/abis/NGORegistry.json";
+import MerchantRegistryABI from "@/contracts/abis/MerchantRegistry.json";
 
 export const useContracts = () => {
   const { signer, provider } = useWeb3();
@@ -32,10 +35,10 @@ export const useContracts = () => {
   const contracts = useMemo(() => {
     return {
       mockToken: createContract(CONTRACT_ADDRESSES.MockToken, MockTokenABI),
-      sheAidRoles: null,
+      sheAidRoles: createContract(CONTRACT_ADDRESSES.SheAidRoles, SheAidRolesABI),
       platformAdmin: null,
-      ngoRegistry: null,
-      merchantRegistry: null,
+      ngoRegistry: createContract(CONTRACT_ADDRESSES.NGORegistry, NGORegistryABI),
+      merchantRegistry: createContract(CONTRACT_ADDRESSES.MerchantRegistry, MerchantRegistryABI),
       marketplace: null,
       beneficiaryModule: null,
       projectVaultManager: createContract(CONTRACT_ADDRESSES.ProjectVaultManager, ProjectVaultManagerABI),
