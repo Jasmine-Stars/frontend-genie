@@ -11,6 +11,7 @@ import { Package, Upload, CheckCircle, ArrowLeft, Plus, Trash2, ShoppingCart } f
 import { useToast } from "@/hooks/use-toast";
 import { useWeb3 } from "@/hooks/useWeb3";
 import { useContracts } from "@/hooks/useContracts";
+import { useContractEvents } from "@/hooks/useContractEvents";
 import { ethers } from "ethers";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -47,6 +48,7 @@ const Merchant = () => {
   const { toast } = useToast();
   const { account, connectWallet } = useWeb3();
   const contracts = useContracts();
+  const { events } = useContractEvents();
 
   useEffect(() => {
     if (account && contracts.marketplace && contracts.merchantRegistry && contracts.beneficiaryModule) {
@@ -54,6 +56,17 @@ const Merchant = () => {
       loadProducts();
     }
   }, [account, contracts]);
+
+  // 监听合约事件自动刷新数据
+  useEffect(() => {
+    const relevantEvents = ["ProductListed", "ProductPriceUpdated", "PurchaseRecorded", "MerchantStatusChanged"];
+    const hasRelevantEvent = events.some(e => relevantEvents.includes(e.type));
+    
+    if (hasRelevantEvent && contracts.marketplace) {
+      loadProducts();
+      checkUserRoles();
+    }
+  }, [events]);
 
   const checkUserRoles = async () => {
     if (!account || !contracts.merchantRegistry || !contracts.beneficiaryModule) return;
