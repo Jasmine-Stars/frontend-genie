@@ -136,9 +136,42 @@ const PlatformAdmin = () => {
   };
 
   const handleApproveApplication = async (application: Application) => {
+    if (!contracts.sheAidRoles) {
+      toast({
+        title: "合约未加载",
+        description: "请先连接钱包",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!account) {
+      toast({
+        title: "请先连接钱包",
+        description: "需要钱包签名来授予受助人角色",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
+
+      toast({
+        title: "步骤 1/2",
+        description: "正在链上授予受助人角色...",
+      });
       
+      // 1. 调用链上合约授予受助人角色
+      const tx = await contracts.sheAidRoles.grantBeneficiaryRole(application.address);
+      await tx.wait();
+
+      toast({
+        title: "步骤 2/2",
+        description: "更新数据库状态...",
+      });
+
+      // 2. 更新数据库状态
       const { error } = await supabase
         .from("applications")
         .update({ 
@@ -151,7 +184,7 @@ const PlatformAdmin = () => {
 
       toast({
         title: "审核通过",
-        description: `已批准 ${application.applicant_name} 的申请`,
+        description: `已批准 ${application.applicant_name} 的申请，并授予受助人角色`,
       });
 
       loadApplications();
@@ -159,7 +192,7 @@ const PlatformAdmin = () => {
       console.error("审核失败:", error);
       toast({
         title: "审核失败",
-        description: error.message,
+        description: error.message || "操作失败，请重试",
         variant: "destructive",
       });
     } finally {
@@ -208,7 +241,16 @@ const PlatformAdmin = () => {
     if (!contracts.merchantRegistry) {
       toast({
         title: "合约未加载",
-        description: "请先连接钱包",
+        description: "MerchantRegistry合约未正确加载",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!account) {
+      toast({
+        title: "请先连接钱包",
+        description: "需要钱包签名来审核商户",
         variant: "destructive",
       });
       return;
@@ -216,6 +258,12 @@ const PlatformAdmin = () => {
 
     try {
       setLoading(true);
+      
+      toast({
+        title: "处理中",
+        description: "正在链上审核商户...",
+      });
+
       const tx = await contracts.merchantRegistry.approveMerchant(merchant.address);
       await tx.wait();
 
@@ -229,7 +277,7 @@ const PlatformAdmin = () => {
       console.error("审核商户失败:", error);
       toast({
         title: "审核失败",
-        description: error.message,
+        description: error.message || "操作失败，请重试",
         variant: "destructive",
       });
     } finally {
@@ -241,7 +289,16 @@ const PlatformAdmin = () => {
     if (!contracts.ngoRegistry) {
       toast({
         title: "合约未加载",
-        description: "请先连接钱包",
+        description: "NGORegistry合约未正确加载",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!account) {
+      toast({
+        title: "请先连接钱包",
+        description: "需要钱包签名来审核NGO",
         variant: "destructive",
       });
       return;
@@ -249,6 +306,12 @@ const PlatformAdmin = () => {
 
     try {
       setLoading(true);
+      
+      toast({
+        title: "处理中",
+        description: "正在链上审核NGO机构...",
+      });
+
       const tx = await contracts.ngoRegistry.approveNGO(ngo.address);
       await tx.wait();
 
@@ -262,7 +325,7 @@ const PlatformAdmin = () => {
       console.error("审核NGO失败:", error);
       toast({
         title: "审核失败",
-        description: error.message,
+        description: error.message || "操作失败，请重试",
         variant: "destructive",
       });
     } finally {
