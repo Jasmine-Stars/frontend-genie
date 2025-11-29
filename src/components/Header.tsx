@@ -1,10 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Heart, Menu, LogOut, User, Shield, Wallet } from "lucide-react";
+import { Heart, Menu, LogOut, User, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useWeb3 } from "@/hooks/useWeb3";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +17,6 @@ const Header = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { account, isConnected, connectWallet, disconnectWallet } = useWeb3();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -91,29 +89,6 @@ const Header = () => {
           </nav>
           
           <div className="flex items-center gap-4">
-            {isConnected ? (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="hidden md:inline-flex gap-2"
-                onClick={disconnectWallet}
-              >
-                <Wallet className="w-4 h-4" />
-                <span className="text-xs">
-                  {account?.slice(0, 6)}...{account?.slice(-4)}
-                </span>
-              </Button>
-            ) : (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="hidden md:inline-flex gap-2"
-                onClick={connectWallet}
-              >
-                <Wallet className="w-4 h-4" />
-                连接钱包
-              </Button>
-            )}
             {isAdmin && (
               <Link to="/admin/platform">
                 <Button variant="default" size="sm" className="hidden md:inline-flex">
