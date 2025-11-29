@@ -208,7 +208,7 @@ src/
 
 如果您对 Web3 公益、智能合约审计或隐私计算感兴趣，欢迎提出 Issue 或 PR！
 
-- **开发者**: [**Jasmine-Stars**](https://github.com/Jasmine-Stars)[**SHIEREN** Kiwi](https://github.com/SHIEREN)
+- **开发者**: [**Jasmine-Stars**](https://github.com/Jasmine-Stars) , [**SHIEREN** Kiwi](https://github.com/SHIEREN)
     
 - **Email**: [JasmineLuosx@gmail.com]
     
