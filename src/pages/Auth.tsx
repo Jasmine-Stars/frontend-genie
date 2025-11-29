@@ -80,10 +80,23 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
-      // 1. 连接MetaMask获取钱包地址
+      // // 1. 连接MetaMask获取钱包地址
+      // const accounts = await window.ethereum.request({ 
+      //   method: 'eth_requestAccounts' 
+      // });
+      // 修复功能：每次登录管理员界面，弹出metamask授权。修改前：只会静默获取上次连接的账号
+
+      // 🟢 修改后：强制请求权限，这会迫使 MetaMask 弹出窗口让用户重新选择账号
+      await window.ethereum.request({
+        method: "wallet_requestPermissions",
+        params: [{ eth_accounts: {} }],
+      });
+      
+      // 请求完权限后，再获取账户列表
       const accounts = await window.ethereum.request({ 
         method: 'eth_requestAccounts' 
       });
+
       
       if (accounts.length === 0) {
         throw new Error("未获取到钱包地址");
