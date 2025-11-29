@@ -585,5 +585,5 @@ return (
       {/* ... Dialog 和 Footer ... */}
     </div>
   );
-
+};
 export default NGO;
