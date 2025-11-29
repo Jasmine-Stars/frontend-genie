@@ -48,12 +48,37 @@ const Header = () => {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "已退出登录",
-      description: "期待您的再次光临",
-    });
-    navigate("/");
+    try {
+      // Clear local state first
+      setUser(null);
+      setIsAdmin(false);
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Sign out error:", error);
+        toast({
+          title: "退出登录失败",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "已退出登录",
+        description: "期待您的再次光临",
+      });
+      navigate("/");
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast({
+        title: "退出登录失败",
+        description: "请刷新页面后重试",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -154,6 +179,22 @@ const Header = () => {
             <Link to="/fund-flow" className="text-foreground hover:text-primary transition-colors font-medium">
               资金追踪
             </Link>
+            {isAdmin && (
+              <Link to="/admin/platform" className="text-foreground hover:text-primary transition-colors font-medium">
+                <Shield className="w-4 h-4 inline mr-2" />
+                管理员控制台
+              </Link>
+            )}
+            {user ? (
+              <button onClick={handleSignOut} className="text-left text-foreground hover:text-primary transition-colors font-medium">
+                <LogOut className="w-4 h-4 inline mr-2" />
+                退出登录
+              </button>
+            ) : (
+              <Link to="/auth" className="text-foreground hover:text-primary transition-colors font-medium">
+                登录 / 注册
+              </Link>
+            )}
           </nav>
         )}
       </div>
