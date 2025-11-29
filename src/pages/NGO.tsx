@@ -10,12 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, CheckCircle, XCircle, Plus, ArrowLeft, Loader2, FileText, Building2, Wallet, RefreshCw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { Shield, CheckCircle, XCircle, Plus, ArrowLeft, Loader2, FileText, Building2, Wallet, RefreshCw, Eye, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useWeb3 } from "@/hooks/useWeb3";
 import { useContracts } from "@/hooks/useContracts";
 import { useContractEvents } from "@/hooks/useContractEvents";
 import { ethers } from "ethers";
+
+// --- 类型定义 ---
 
 interface Application {
   id: string;
@@ -27,6 +32,7 @@ interface Application {
   project_id: string | null;
 }
 
+// Supabase 中的项目结构
 interface Project {
   id: string;
   title: string;
@@ -34,16 +40,39 @@ interface Project {
   category: string;
   target_amount: number;
   current_amount?: number;
+  beneficiary_count?: number;
   created_at?: string;
+  image_url?: string | null;
+}
+
+// 链上详情数据结构
+interface ChainDetails {
+  id: number;
+  donatedAmount: string;
+  remainingFunds: string;
+  budget: string;
+  allocations: {
+    beneficiary: string;
+    amount: string;
+    timestamp: string;
+    txHash: string;
+  }[];
 }
 
 const NGO = () => {
   const [ngoStatus, setNgoStatus] = useState<"loading" | "register" | "pending" | "approved" | "rejected">("loading");
   const [selectedTab, setSelectedTab] = useState<"applications" | "projects" | "allocations">("applications");
+  
   const [applications, setApplications] = useState<Application[]>([]);
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [organizerId, setOrganizerId] = useState<string | null>(null);
+
+  // 详情弹窗状态
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [chainDetails, setChainDetails] = useState<ChainDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   
   // 注册表单
   const [regForm, setRegForm] = useState({
@@ -68,28 +97,33 @@ const NGO = () => {
 
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { account } = useWeb3();
+  const { account, connectWallet } = useWeb3();
   const contracts = useContracts();
   const { events } = useContractEvents();
 
-  // --- 1. 初始化与状态检查 ---
+  // --- 1. 初始化 ---
   useEffect(() => {
     checkNGOStatus();
   }, [account]);
 
   useEffect(() => {
     if (ngoStatus === "approved" && organizerId) {
-      fetchDashboardData();
+      fetchData();
     }
   }, [selectedTab, ngoStatus, organizerId]);
 
-  // 监听链上 ProjectCreated 事件，自动刷新列表
+  // 监听链上事件以实时更新详情
   useEffect(() => {
-    const hasNewProject = events.some(e => e.type === "ProjectCreated");
-    if (hasNewProject && ngoStatus === "approved") {
-      fetchDashboardData();
+    const relevantEvents = ["ProjectDonationReceived", "ProjectFundsAllocatedToBeneficiary"];
+    const hasUpdate = events.some(e => relevantEvents.includes(e.type));
+    
+    if (hasUpdate && detailsOpen && selectedProject) {
+      console.log("监听到资金变动，刷新详情...");
+      fetchChainDetails(selectedProject);
     }
   }, [events]);
+
+  // --- 数据获取 ---
 
   const checkNGOStatus = async () => {
     try {
@@ -117,8 +151,7 @@ const NGO = () => {
     }
   };
 
-  const fetchDashboardData = async () => {
-    if (!organizerId) return;
+  const fetchData = async () => {
     setLoading(true);
     try {
       if (selectedTab === "applications") {
@@ -146,7 +179,82 @@ const NGO = () => {
     }
   };
 
-  // --- 2. NGO 注册逻辑 ---
+  // ✅ 获取链上详情 (核心逻辑)
+  const handleOpenDetails = (project: Project) => {
+    setSelectedProject(project);
+    setDetailsOpen(true);
+    fetchChainDetails(project);
+  };
+
+  const fetchChainDetails = async (project: Project) => {
+    if (!contracts.projectVaultManager) return;
+    setLoadingDetails(true);
+    
+    try {
+      let chainId: number | undefined;
+
+      // 1. 尝试在链上寻找对应的 Project ID
+      const filter = contracts.projectVaultManager.filters.ProjectCreated(); 
+      const logs = await contracts.projectVaultManager.queryFilter(filter);
+      
+      // 2. 通过标题匹配
+      const targetLog = logs.find(log => log.args?.title === project.title);
+      
+      if (targetLog) {
+        chainId = targetLog.args?.projectId.toNumber();
+      } else {
+        // 兜底逻辑：如果标题匹配失败，尝试检查 ID 0
+        try {
+          const p0 = await contracts.projectVaultManager.projects(0);
+          if (p0.title === project.title || logs.length === 0) {
+             chainId = 0;
+          }
+        } catch (err) {
+          console.error("兜底检查失败", err);
+        }
+      }
+
+      if (chainId === undefined) {
+        throw new Error("未在链上找到该项目，请确认项目是否已成功上链");
+      }
+
+      // 3. 读取资金状态
+      const pData = await contracts.projectVaultManager.projects(chainId);
+
+      // 4. 读取分配记录
+      const allocFilter = contracts.projectVaultManager.filters.ProjectFundsAllocatedToBeneficiary(chainId);
+      const allocLogs = await contracts.projectVaultManager.queryFilter(allocFilter);
+      
+      const allocations = allocLogs.map(log => ({
+        beneficiary: log.args?.beneficiary,
+        amount: ethers.utils.formatEther(log.args?.amount),
+        timestamp: new Date(log.args?.timestamp.toNumber() * 1000).toLocaleString(),
+        txHash: log.transactionHash
+      })).reverse();
+
+      setChainDetails({
+        id: chainId,
+        donatedAmount: ethers.utils.formatEther(pData.donatedAmount),
+        remainingFunds: ethers.utils.formatEther(pData.remainingFunds),
+        budget: ethers.utils.formatEther(pData.budget),
+        allocations: allocations
+      });
+
+    } catch (error: any) {
+      console.error("Fetch chain details error:", error);
+      toast({ 
+        title: "无法获取链上详情", 
+        description: "请确保您的钱包已连接到 Sepolia 测试网，并且该项目已正确上链。",
+        variant: "destructive" 
+      });
+      setChainDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // --- 操作逻辑 ---
+
   const handleRegisterNGO = async () => {
     if (!account || !contracts.ngoRegistry || !contracts.mockToken) return;
     if (!regForm.name || !regForm.licenseId || !regForm.stakeAmount) {
@@ -179,28 +287,25 @@ const NGO = () => {
         status: "pending"
       });
 
-      toast({ title: "注册成功", description: "申请已提交，请等待平台管理员审核" });
+      toast({ title: "注册成功", description: "已提交审核" });
       setNgoStatus("pending");
-
     } catch (error: any) {
-      console.error(error);
       toast({ title: "注册失败", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- 3. 核心逻辑：创建慈善项目 ---
   const handleCreateProject = async () => {
     if (!organizerId) return;
     if (!contracts.projectVaultManager || !contracts.mockToken || !account) {
-      toast({ title: "合约未连接", description: "请确保钱包已连接且在正确网络", variant: "destructive" });
+      toast({ title: "合约未连接", variant: "destructive" });
       return;
     }
 
     const budget = parseFloat(newProject.target_amount);
     if (!newProject.title || isNaN(budget) || budget <= 0) {
-      toast({ title: "请输入有效的标题和目标金额", variant: "destructive" });
+      toast({ title: "请输入有效信息", variant: "destructive" });
       return;
     }
 
@@ -208,26 +313,14 @@ const NGO = () => {
     try {
       const budgetWei = ethers.utils.parseEther(budget.toString());
       const requiredDepositWei = budgetWei.mul(120).div(100);
-      const requiredDepositEth = ethers.utils.formatEther(requiredDepositWei);
 
-      // 1. 授权押金
-      toast({
-        title: "步骤 1/3: 支付项目押金",
-        description: `需质押 ${requiredDepositEth} MUSD (120% 保证金)，请授权。`,
-      });
-
-      const approveTx = await contracts.mockToken.approve(
-        contracts.projectVaultManager.address,
-        requiredDepositWei
-      );
+      // 1. 授权
+      toast({ title: "步骤 1/3", description: "正在授权押金..." });
+      const approveTx = await contracts.mockToken.approve(contracts.projectVaultManager.address, requiredDepositWei);
       await approveTx.wait();
 
       // 2. 链上创建
-      toast({
-        title: "步骤 2/3: 创建链上项目",
-        description: "正在调用智能合约...",
-      });
-
+      toast({ title: "步骤 2/3", description: "正在链上创建..." });
       const createTx = await contracts.projectVaultManager.createProject(
         budgetWei,
         newProject.title,
@@ -237,80 +330,48 @@ const NGO = () => {
       );
       await createTx.wait();
 
-      // 3. 同步数据库 (修复这里的 null 报错)
-      toast({
-        title: "步骤 3/3: 同步数据",
-        description: "正在保存项目信息...",
-      });
-
-      const { error } = await supabase.from("projects").insert({
+      // 3. 数据库同步
+      toast({ title: "步骤 3/3", description: "保存数据..." });
+      await supabase.from("projects").insert({
         organizer_id: organizerId,
         title: newProject.title,
         description: newProject.description,
         category: newProject.category,
         target_amount: budget,
-        // 🔴 修复点：添加 || 0，防止 parseInt 返回 NaN 导致数据库报错
-        beneficiary_count: parseInt(newProject.beneficiary_count) || 0, 
+        beneficiary_count: parseInt(newProject.beneficiary_count) || 0, // 防止 NaN
         image_url: newProject.image_url || null,
         status: "active",
       });
 
-      if (error) throw error;
-
-      toast({ title: "项目创建成功！", description: "项目已上线并开始接受捐赠" });
-      
+      toast({ title: "项目创建成功！" });
       setNewProject({ title: "", description: "", category: "", target_amount: "", beneficiary_count: "", image_url: "" });
-      fetchDashboardData();
-
+      fetchData();
     } catch (error: any) {
-      console.error("Create project error:", error);
-      let msg = error.message || "未知错误";
-      if (error.code === 4001) msg = "用户取消了交易";
-      if (error.data?.message?.includes("deposit too low")) msg = "押金不足 (需120%)";
-      
-      toast({
-        title: "创建失败",
-        description: msg,
-        variant: "destructive",
-      });
+      toast({ title: "创建失败", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- 业务功能：审核申请 ---
-  const handleApproveApplication = async (applicationId: string) => {
-    try {
-      await supabase.from("applications").update({ status: "approved" }).eq("id", applicationId);
-      setApplications(prev => prev.map(app => app.id === applicationId ? { ...app, status: "approved" } : app));
-      toast({ title: "审核通过" });
-    } catch (e) { toast({ title: "失败", variant: "destructive" }) }
+  const handleApproveApplication = async (id: string) => { 
+    await supabase.from("applications").update({status: "approved"}).eq("id", id);
+    setApplications(prev => prev.map(a => a.id === id ? {...a, status: "approved"} : a));
+    toast({title: "已批准"});
+  };
+  const handleRejectApplication = async (id: string) => { 
+    await supabase.from("applications").update({status: "rejected"}).eq("id", id);
+    setApplications(prev => prev.map(a => a.id === id ? {...a, status: "rejected"} : a));
+    toast({title: "已拒绝"});
   };
 
-  const handleRejectApplication = async (applicationId: string) => {
-    try {
-      await supabase.from("applications").update({ status: "rejected" }).eq("id", applicationId);
-      setApplications(prev => prev.map(app => app.id === applicationId ? { ...app, status: "rejected" } : app));
-      toast({ title: "已拒绝" });
-    } catch (e) { toast({ title: "失败", variant: "destructive" }) }
-  };
+  // --- 视图渲染 ---
 
-  // --- 渲染逻辑 ---
-
-// ... (前面的代码保持不变)
-
-  // --- 恢复：注册视图 (Register View) ---
   const renderRegisterView = () => (
     <div className="max-w-2xl mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-primary" />
-            注册成为 NGO 机构
-          </CardTitle>
-          <CardDescription>
-            在 SheAid 平台上发起慈善项目，需要先验证机构资质并缴纳押金。
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2"><Building2 className="w-6 h-6 text-primary" /> 注册 NGO</CardTitle>
+          <CardDescription>发起项目需先验证资质并缴纳押金。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!account ? (
@@ -396,8 +457,6 @@ const NGO = () => {
     </div>
   );
 
-  // ... (后面的代码保持不变)
-
   const renderDashboard = () => (
     <>
       <div className="text-center mb-12">
@@ -411,71 +470,41 @@ const NGO = () => {
       </div>
 
       {!loading && selectedTab === "projects" && (
-         <div className="max-w-4xl mx-auto space-y-6">
+         <div className="max-w-5xl mx-auto space-y-6">
+           {/* 创建表单 */}
            <Card className="border-primary/20 shadow-lg">
-             <CardHeader className="bg-primary/5">
-               <CardTitle className="text-primary flex items-center gap-2">
-                 <Plus className="w-5 h-5"/> 发起新的募捐项目
-               </CardTitle>
-               <CardDescription>
-                 系统将自动冻结目标金额 120% 的押金。
-               </CardDescription>
-             </CardHeader>
+             <CardHeader className="bg-primary/5"><CardTitle>发起新项目</CardTitle></CardHeader>
              <CardContent className="space-y-4 pt-6">
-               <div className="grid grid-cols-2 gap-6">
-                 <div className="space-y-2">
-                   <Label>项目标题</Label>
-                   <Input value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} placeholder="例如：山区女童助学计划" />
-                 </div>
-                 <div className="space-y-2">
-                    <Label>项目类别</Label>
-                    <Select value={newProject.category} onValueChange={v => setNewProject({...newProject, category: v})}>
-                      <SelectTrigger><SelectValue placeholder="选择..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="education">教育支持</SelectItem>
-                        <SelectItem value="medical">医疗援助</SelectItem>
-                        <SelectItem value="emergency">紧急救助</SelectItem>
-                      </SelectContent>
-                    </Select>
-                 </div>
+               <div className="grid grid-cols-2 gap-4">
+                 <Input value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} placeholder="项目标题" />
+                 <Input type="number" value={newProject.target_amount} onChange={e => setNewProject({...newProject, target_amount: e.target.value})} placeholder="目标金额 (ETH)" />
                </div>
-               
-               <div className="grid grid-cols-2 gap-6">
-                 <div className="space-y-2">
-                   <Label>募捐目标金额 (ETH)</Label>
-                   <Input type="number" value={newProject.target_amount} onChange={e => setNewProject({...newProject, target_amount: e.target.value})} placeholder="10.0" />
-                 </div>
-                 <div className="space-y-2">
-                   <Label>预计受助人数</Label>
-                   <Input type="number" value={newProject.beneficiary_count} onChange={e => setNewProject({...newProject, beneficiary_count: e.target.value})} placeholder="50" />
-                 </div>
+               <div className="grid grid-cols-2 gap-4">
+                  <Select onValueChange={v => setNewProject({...newProject, category: v})}><SelectTrigger><SelectValue placeholder="类别"/></SelectTrigger><SelectContent><SelectItem value="education">教育</SelectItem><SelectItem value="medical">医疗</SelectItem></SelectContent></Select>
+                  <Input type="number" value={newProject.beneficiary_count} onChange={e => setNewProject({...newProject, beneficiary_count: e.target.value})} placeholder="预计受助人数" />
                </div>
-
-               <div className="space-y-2">
-                 <Label>项目详情描述</Label>
-                 <Textarea rows={3} value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} placeholder="请详细描述项目背景..." />
-               </div>
-
-               <Button onClick={handleCreateProject} disabled={loading} className="w-full h-12 text-lg">
-                 {loading ? <Loader2 className="animate-spin mr-2"/> : <CheckCircle className="mr-2"/>} 
-                 确认创建并质押押金
-               </Button>
+               <Textarea value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} placeholder="描述..." />
+               <Button onClick={handleCreateProject} disabled={loading} className="w-full">{loading ? <Loader2 className="animate-spin"/> : <Plus className="mr-2 w-4 h-4"/>} 创建项目 (需押金)</Button>
              </CardContent>
            </Card>
 
+           {/* 项目列表 (Supabase源) + 详情按钮 */}
            <div className="space-y-4">
-             <h3 className="text-xl font-bold flex items-center gap-2">
-               <RefreshCw className="w-5 h-5"/> 已发布项目
-             </h3>
+             <h3 className="text-xl font-bold flex items-center gap-2"><RefreshCw className="w-5 h-5"/> 已发布项目</h3>
              {myProjects.length === 0 ? (
                <div className="text-center py-10 text-muted-foreground border rounded-lg">暂无发布记录</div>
              ) : (
                myProjects.map(p => (
                  <Card key={p.id} className="hover:shadow-md transition-shadow">
                    <CardHeader className="pb-2">
-                     <div className="flex justify-between">
-                       <CardTitle>{p.title}</CardTitle>
-                       <Badge>{p.category}</Badge>
+                     <div className="flex justify-between items-center">
+                       <div>
+                         <CardTitle className="text-lg">{p.title}</CardTitle>
+                         <Badge variant="outline">{p.category}</Badge>
+                       </div>
+                       <Button variant="secondary" size="sm" onClick={() => handleOpenDetails(p)}>
+                         <Eye className="w-4 h-4 mr-2"/> 实时详情 & 资金流向
+                       </Button>
                      </div>
                      <CardDescription>目标: {p.target_amount} ETH</CardDescription>
                    </CardHeader>
@@ -488,70 +517,44 @@ const NGO = () => {
            </div>
          </div>
       )}
-
+      
       {!loading && selectedTab === "applications" && (
         <div className="grid md:grid-cols-2 gap-6">
-          {applications.length === 0 ? (
-            <div className="col-span-2 text-center py-12 text-muted-foreground">暂无待审核的申请</div>
-          ) : (
-            applications.map((app) => (
+          {applications.map((app) => (
               <Card key={app.id}>
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div><CardTitle>{app.applicant_name}</CardTitle><CardDescription>{new Date(app.created_at).toLocaleDateString()}</CardDescription></div>
-                    <Badge variant={app.status === "approved" ? "default" : app.status === "rejected" ? "destructive" : "secondary"}>{app.status}</Badge>
+                  <div className="flex justify-between">
+                    <CardTitle>{app.applicant_name}</CardTitle>
+                    <Badge variant={app.status === "approved" ? "default" : "secondary"}>{app.status}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm mb-2"><strong>情况:</strong> {app.situation}</p>
-                  <p className="text-sm mb-4"><strong>申请:</strong> {app.requested_amount} 元</p>
+                  <p className="text-sm mb-4">{app.situation}</p>
                   {app.status === "pending" && (
                     <div className="flex gap-2">
-                      <Button size="sm" className="flex-1" onClick={() => handleApproveApplication(app.id)}><CheckCircle className="w-4 h-4 mr-1" /> 批准</Button>
-                      <Button size="sm" variant="destructive" className="flex-1" onClick={() => handleRejectApplication(app.id)}><XCircle className="w-4 h-4 mr-1" /> 拒绝</Button>
+                      <Button size="sm" className="flex-1" onClick={() => handleApproveApplication(app.id)}>批准</Button>
+                      <Button size="sm" variant="destructive" className="flex-1" onClick={() => handleRejectApplication(app.id)}>拒绝</Button>
                     </div>
                   )}
                 </CardContent>
               </Card>
-            ))
-          )}
+          ))}
         </div>
       )}
     </>
   );
 
-//   return (
-//     <div className="min-h-screen bg-background">
-//       <Header />
-//       <main className="pt-32 pb-20 px-6">
-//         <div className="container mx-auto">
-//           {ngoStatus !== "approved" && (
-//             <Button variant="ghost" onClick={() => navigate("/")} className="mb-6"><ArrowLeft className="mr-2"/> 返回</Button>
-//           )}
-//           {ngoStatus === "register" && renderRegisterView()}
-//           {ngoStatus === "pending" && <Card className="py-12 text-center"><CardContent>您的申请正在审核中...</CardContent></Card>}
-//           {ngoStatus === "rejected" && <Card className="py-12 text-center"><CardContent>申请被拒绝</CardContent></Card>}
-//           {ngoStatus === "approved" && renderDashboard()}
-//         </div>
-//       </main>
-//       <Footer />
-//     </div>
-//   );
-// };
-
-return (
+  return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="pt-32 pb-20 px-6">
         <div className="container mx-auto">
-          {/* 只有非 Approved 状态才显示返回按钮，避免 Dashboard 里也有返回按钮显得奇怪 */}
           {ngoStatus !== "approved" && (
             <Button variant="ghost" onClick={() => navigate("/")} className="mb-6 hover:bg-accent">
               <ArrowLeft className="w-4 h-4 mr-2" /> 返回主页
             </Button>
           )}
 
-          {/* 状态路由：根据 ngoStatus 决定显示哪个子组件 */}
           {ngoStatus === "register" && renderRegisterView()}
           
           {ngoStatus === "pending" && (
@@ -582,8 +585,91 @@ return (
           {ngoStatus === "approved" && renderDashboard()}
         </div>
       </main>
-      {/* ... Dialog 和 Footer ... */}
+
+      {/* 详情弹窗 */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>项目实时详情</DialogTitle>
+            <DialogDescription>
+              项目标题: <span className="font-bold text-primary">{selectedProject?.title}</span>
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="py-12 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary"/></div>
+          ) : chainDetails ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-green-50 border border-green-100 rounded-lg text-center">
+                  <div className="text-sm text-muted-foreground">已募集资金</div>
+                  <div className="text-2xl font-bold text-green-700">{chainDetails.donatedAmount} ETH</div>
+                </div>
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg text-center">
+                  <div className="text-sm text-muted-foreground">剩余可用资金</div>
+                  <div className="text-2xl font-bold text-blue-700">{chainDetails.remainingFunds} ETH</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                 <div className="flex justify-between text-sm">
+                   <span>募集进度</span>
+                   <span className="font-mono">
+                     {((parseFloat(chainDetails.donatedAmount) / (parseFloat(chainDetails.budget) || 1)) * 100).toFixed(1)}%
+                   </span>
+                 </div>
+                 <Progress value={(parseFloat(chainDetails.donatedAmount) / (parseFloat(chainDetails.budget) || 1)) * 100} className="h-3" />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold flex items-center gap-2 mb-3 border-b pb-2">
+                  <TrendingUp className="w-5 h-5 text-primary"/> 资金流向 (分配给受助者)
+                </h3>
+                {chainDetails.allocations.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground bg-accent/10 rounded-lg">
+                    暂无资金分配记录
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>受助人地址</TableHead>
+                          <TableHead>金额</TableHead>
+                          <TableHead>时间</TableHead>
+                          <TableHead className="text-right">链上凭证</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {chainDetails.allocations.map((record, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-mono text-xs">{record.beneficiary}</TableCell>
+                            <TableCell className="font-bold text-green-600">+{record.amount}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{record.timestamp}</TableCell>
+                            <TableCell className="text-right">
+                              <a href={`https://sepolia.etherscan.io/tx/${record.txHash}`} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline text-xs">
+                                查看 Tx
+                              </a>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-red-500">
+              未找到对应的链上合约数据，请确认该项目是否已成功上链。
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Footer />
     </div>
   );
 };
+
 export default NGO;
