@@ -40,6 +40,16 @@ const Header = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // 监听钱包连接状态，如果是管理员钱包地址则显示管理员入口
+  useEffect(() => {
+    if (account?.toLowerCase() === "0x4473cd3f7ee51b9f6e3d3ed135325c3418470481".toLowerCase()) {
+      setIsAdmin(true);
+    } else if (!user) {
+      // 如果没有登录用户且钱包不是管理员地址，则重置管理员状态
+      setIsAdmin(false);
+    }
+  }, [account, user]);
+
   const checkAdminRole = async (userId: string) => {
     const { data: profile } = await supabase
       .from("profiles")
