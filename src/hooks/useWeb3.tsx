@@ -50,6 +50,28 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
+  // 初始化检查：页面刷新时自动同步 MetaMask 状态
+  const initWeb3 = async () => {
+    if (window.ethereum) {
+      try {
+        const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+        const accounts = await web3Provider.listAccounts(); // 获取当前已连接的账户
+        
+        if (accounts.length > 0) {
+          const network = await web3Provider.getNetwork();
+          const web3Signer = web3Provider.getSigner();
+          
+          setProvider(web3Provider);
+          setSigner(web3Signer);
+          setAccount(accounts[0]);
+          setChainId(network.chainId);
+        }
+      } catch (error) {
+        console.error("Web3 初始化失败:", error);
+      }
+    }
+  };
+
   const connectWallet = async () => {
     if (!window.ethereum) {
       toast.error("请安装 MetaMask 钱包");
@@ -57,6 +79,12 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      // 强制请求权限，确保弹出选择窗口
+      await window.ethereum.request({
+        method: "wallet_requestPermissions",
+        params: [{ eth_accounts: {} }],
+      });
+
       const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
@@ -76,7 +104,7 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       toast.success("钱包连接成功");
     } catch (error: any) {
       console.error("连接钱包失败:", error);
-      toast.error("连接钱包失败");
+      // toast.error("连接钱包失败"); // 用户取消不用报错
     }
   };
 
@@ -89,26 +117,36 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    initWeb3(); // 组件挂载时立即初始化
+
     if (window.ethereum) {
-      window.ethereum.on("accountsChanged", (accounts: string[]) => {
+      const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
           disconnectWallet();
         } else {
+          // 账号切换时，重新初始化 provider 和 signer
+          const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+          setProvider(web3Provider);
+          setSigner(web3Provider.getSigner());
           setAccount(accounts[0]);
+          toast.info(`已切换账号: ${accounts[0].slice(0,6)}...`);
         }
-      });
+      };
 
-      window.ethereum.on("chainChanged", () => {
+      const handleChainChanged = () => {
         window.location.reload();
-      });
-    }
+      };
 
-    return () => {
-      if (window.ethereum?.removeListener) {
-        window.ethereum.removeListener("accountsChanged", () => {});
-        window.ethereum.removeListener("chainChanged", () => {});
-      }
-    };
+      window.ethereum.on("accountsChanged", handleAccountsChanged);
+      window.ethereum.on("chainChanged", handleChainChanged);
+
+      return () => {
+        if (window.ethereum?.removeListener) {
+          window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+          window.ethereum.removeListener("chainChanged", handleChainChanged);
+        }
+      };
+    }
   }, []);
 
   return (
