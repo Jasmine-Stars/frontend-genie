@@ -1,0 +1,191 @@
+# 🌸 SheAid: 基于以太坊与去中心化身份的女性安全捐助链
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Tech Stack](https://img.shields.io/badge/Tech-Solidity%20%7C%20React%20%7C%20Supabase-blue)](https://github.com/Jasmine-Stars/frontend-genie)
+[![Network](https://img.shields.io/badge/Network-Sepolia%20Testnet-green)]()
+
+
+> **"Code is Law, Tech for Good."**
+> 
+> 用代码约束权力，用加密保护尊严，让善意有迹可循。
+
+[这里是 PPT 展示](https://ppt-previewer-pro.lovable.app)
+[这里是 SheAid 网站](https://frontend-genie.lovable.app)
+
+## 📖 项目简介 (Introduction)
+
+**SheAid** 是一个致力于解决传统慈善“黑箱”与“最后一步失效”问题的 Web3 公益基础设施。
+
+在针对弱势女性的援助中，传统慈善面临三大痛点：**账目不透明**、**采购腐败**以及**隐私泄露**。更严重的是，我们发现直接发放的现金援助往往被家庭中的强势成员（如施暴者）剥夺，导致援助无法真正落实到受助人身上（**有受助之名，无支配之实**）。
+
+SheAid 通过 **智能合约资金闭环**、**DID 隐私保护** 以及 **博弈论风控模型**，构建了一个“去信任”（Trustless）的透明捐助系统，确保每一分善款都安全、透明地转化为受助女性手中的实物物资。
+
+---
+
+## 💡 核心创新与痛点解决 (Core Innovations)
+
+### 1. 🛡️ “防剥夺”资金闭环 (Anti-Deprivation Fund Loop)
+针对**“有受助之名，无支配之实”**的痛点：
+* **机制**：捐赠资金锁定在智能合约中，受助人获得的是不可转移的链上积分（CharityToken）而非现金。
+* **闭环**：受助人仅能在白名单商户处兑换生活物资，资金由合约直接结算给商户。
+* **效果**：**资金从未经过受助人钱包**，从技术上杜绝了家庭成员挪用善款的可能性。
+
+### 2. ⚖️ 基于博弈论的生态制衡 (Ecological Equilibrium Based on Game Theory)
+针对家庭暴力环境下的资源掠夺：
+* **纳什均衡设计**：若家庭强势成员强行干扰受助，一旦被举报或审计发现违规，受助资格将被永久移除（黑名单）。
+* **结果**：理性的施暴者为了家庭整体获得物资利益（哪怕只是小利），被迫妥协并允许女性拥有物资支配权。
+
+### 3. 💰 “以罚养善”的审计经济学 (Audit-to-Earn Economics)
+* **全员质押**：NGO、商户、审计员均需质押保证金（Stake）。
+* **激励模型**：任何人可发起挑战（Challenge），一旦查实违规，违规者的质押金将被罚没。
+* **资金分配**：罚金 = **审计员奖金** + **平台运营费** + **回流善款池**。实现系统的自我造血与净化。
+
+---
+
+## 🏗️ 技术架构 (System Architecture)
+
+本项目采用 **"Registry + Logic"** 分离的模块化合约设计，确保系统的安全性和可升级性。
+
+### 分层视图
+
+```mermaid
+graph TD
+    User["前端应用层 (React + ShadcnUI)"] --> Data["数据索引层 (Supabase + The Graph)"]
+    User --> Contract["智能合约层 (Sepolia)"]
+    
+    subgraph Contract [核心合约模块]
+        Roles["SheAidRoles<br/>(权限控制中心)"]
+        
+        subgraph Funds [资金与资产]
+            Vault["ProjectVaultManager<br/>(项目资金池)"]
+            Token["BeneficiaryModule<br/>(受助人积分)"]
+            Market["Marketplace<br/>(商户核销)"]
+        end
+        
+        subgraph Governance [准入与治理]
+            NGO["NGORegistry<br/>(机构质押)"]
+            Merch["MerchantRegistry<br/>(商户质押)"]
+            Admin["PlatformAdmin<br/>(黑名单/举报)"]
+        end
+        
+        Roles --> Funds
+        Roles --> Governance
+    end
+```
+
+### 核心合约说明
+
+  * **`SheAidRoles.sol`**: RBAC 权限管理，严格区分 Admin, NGO, Merchant, Beneficiary 角色。
+  * **`ProjectVaultManager.sol`**: 管理每个项目的独立资金池，确保专款专用，支持退款逻辑。
+  * **`BeneficiaryModule.sol`**: 处理积分发放、消费冷却期（Cooldown）及每日限额风控。
+  * **`Marketplace.sol`**: 处理商户商品上架、限价检查（Price Oracle 预留接口）及资金结算。
+
+-----
+
+## 🚀 功能特性 (MVP Features)
+
+✅ **去中心化身份**：支持 MetaMask 钱包登录，自动识别 Admin/NGO/商户/受助人角色。  
+✅ **透明捐赠**：捐赠人可选择特定项目捐款，资金流向链上实时可查。  
+✅ **项目管理**：NGO 发起项目需质押资金（120%），防范作恶成本。  
+✅ **物资核销**：商户上架商品，受助人使用积分“购买”，合约自动结算稳定币。  
+✅ **双重风控**：
+
+  * **价格风控**：限制商户商品价格波动范围。
+  * **行为风控**：受助人每日消费限额与冷却期限制，防止套现。
+
+-----
+
+## 🛠️ 本地运行指南 (Getting Started)
+
+### 前置要求
+
+  * Node.js v18+
+  * Git
+  * MetaMask (连接至 Sepolia 测试网)
+
+### 1\. 克隆项目
+
+```bash
+git clone [https://github.com/your-username/SheAid.git](https://github.com/your-username/SheAid.git)
+cd SheAid
+```
+
+### 2\. 安装依赖
+
+```bash
+npm install
+# 或
+bun install
+```
+
+### 3\. 配置环境变量
+
+在根目录创建 `.env` 文件：
+
+```env
+VITE_SUPABASE_URL=你的SupabaseURL
+VITE_SUPABASE_PUBLISHABLE_KEY=你的SupabaseKey
+```
+
+### 4\. 启动前端
+
+```bash
+npm run dev
+```
+
+访问 `http://localhost:8080` 即可看到应用。
+
+-----
+
+## 🗺️ 发展路线图 (Roadmap)
+
+### Phase 1: MVP与核心验证 (Current)
+
+  * [x] 完成核心合约开发与 Sepolia 部署。
+  * [x] 前端界面实现：捐赠、管理、商城、核销流程。
+  * [x] 基础风控：质押机制与限额机制。
+
+### Phase 2: 隐私增强与数据赋能 (Q1-Q2 2026)
+
+  * [ ] **ZK-SNARKs 集成**：引入零知识证明，实现受助人“匿名领取”，不暴露钱包地址与真实身份的关联。
+  * [ ] **数据反向谈判**：利用链上累积的真实消费数据，指导平台与供应链谈判，降低物资进货价。
+
+### Phase 3: 开放生态与 DAO (Q3 2026+)
+
+  * [ ] **人人公益**：开放个人发起救助项目（需高额质押与社区审计）。
+  * [ ] **SheAid DAO**：发行治理代币，由社区投票决定罚没资金分配比例与黑名单移除。
+
+-----
+
+## 📂 项目结构 (Project Structure)
+
+```
+src/
+├── components/        # UI 组件 (ShadcnUI)
+├── contracts/         # 智能合约源文件 (.sol)
+│   ├── abis/          # 合约 ABI JSON
+│   ├── addresses.ts   # 部署后的合约地址配置
+│   └── ...
+├── hooks/             # React Hooks (Web3, Contracts)
+├── pages/             # 页面路由 (Admin, NGO, Merchant, Donate...)
+├── integrations/      # 第三方集成 (Supabase)
+└── utils/             # 工具函数
+```
+
+-----
+
+## 🤝 贡献与联系 (Contact)
+
+作为一个**网络空间安全专业的个人开发者**，我深知安全与隐私的重要性。本项目不仅是一次技术实践，更是对利用技术解决社会问题的探索。
+
+如果您对 Web3 公益、智能合约审计或隐私计算感兴趣，欢迎提出 Issue 或 PR！
+
+  * **开发者**: [**Jasmine-Stars**](https://github.com/Jasmine-Stars) / [**SHIEREN** Kiwi](https://github.com/SHIEREN)
+  * **Email**: [JasmineLuosx@gmail.com]
+  * **Twitter**: [@luo\_jasmin2045](https://x.com/luo_jasmin2045)
+
+-----
+
+> *Built with ❤️ for the voiceless.*
+
+```
